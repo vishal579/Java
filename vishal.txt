@@ -1,0 +1,39 @@
+int insertAssociate(Associate associate) {
+		associate.setAssociateID(ASSOCIATE_ID_COUNTER++);
+		associateList[ASSOCIATE_IDX_COUNTER++]=associate;
+		return associateList[ASSOCIATE_IDX_COUNTER-1].getAssociateID();
+	}
+	boolean updateAssociate(Associate associate) {
+		for(int i=0;i<associateList.length;i++) {
+			if(associate.getAssociateID()==associateList[i].getAssociateID())
+				associateList[i]=associate;
+				/*associateList[i].setFirstName(associate.getFirstName());
+				associateList[i].setLastName(associate.getLastName());*/
+		}
+		
+		return true;
+		
+	}
+	boolean deleteAssociate(int associateID) {
+		for(int i=0;i<associateList.length;i++) {
+			if(associateID==associateList[i].getAssociateID()) {
+				associateList[i]=null;
+				associateList[i]=new Associate();
+				associateList[i].setAssociateID(associateID);
+				
+			}
+		}
+		return false;
+	}
+	Associate getAssociate(int associateID) {
+		for(int i=0;i<associateList.length;i++) {
+			if(associateID==associateList[i].getAssociateID()) {
+				return associateList[i];
+			}
+		}
+		return null;
+	}
+	Associate[] getAssociates() {
+				return associateList;
+	}
+}
