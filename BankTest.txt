@@ -1,0 +1,196 @@
+package com.cg.banking.test;
+
+import static org.junit.Assert.*;
+
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.cg.banking.beans.Account;
+import com.cg.banking.beans.Address;
+import com.cg.banking.beans.Customer;
+import com.cg.banking.beans.Transaction;
+import com.cg.banking.daoservices.BankingDAOServicesImpl;
+import com.cg.banking.exceptions.AccountBlockedException;
+import com.cg.banking.exceptions.AccountNotFoundException;
+import com.cg.banking.exceptions.BankingServicesDownException;
+import com.cg.banking.exceptions.CustomerNotFoundException;
+import com.cg.banking.exceptions.InsufficientAmountException;
+import com.cg.banking.exceptions.InvalidAccountTypeException;
+import com.cg.banking.exceptions.InvalidAmountException;
+import com.cg.banking.exceptions.InvalidPinNumberException;
+import com.cg.banking.services.BankingServicesImpl;
+import com.cg.banking.utility.BankingUtility;
+
+public class BankingServicesTest {
+	private static BankingServicesImpl services;
+	@BeforeClass
+	public static void setUpTestEnv(){
+		services=new BankingServicesImpl();
+	}
+	@AfterClass
+	public static void tearDownTestEnv(){
+		services=null;
+	}
+	@Before
+	public void setUpMockData(){
+		BankingDAOServicesImpl.customerMap.put(BankingUtility.CUSTOMER_ID_COUNTER, new Customer(BankingUtility.CUSTOMER_ID_COUNTER,"V", "J", "abc@gmail.com", "abc12300", new Address(400001, "pune", "mh"), new Address(500014, "hyd", "TG")));
+		BankingDAOServicesImpl.customerMap.get(BankingUtility.CUSTOMER_ID_COUNTER).getAccountMap().put(BankingUtility.ACCOUNT_NO_COUNTER, new Account(8888, 0, "Savings", "Active", 100000));
+		BankingDAOServicesImpl.customerMap.get(BankingUtility.CUSTOMER_ID_COUNTER++).getAccountMap().get(BankingUtility.ACCOUNT_NO_COUNTER++).getTransactionMap().put(BankingUtility.TRANSACTION_ID_COUNTER, new Transaction(BankingUtility.TRANSACTION_ID_COUNTER++, 10000, "Deposit"));
+	
+		BankingDAOServicesImpl.customerMap.put(BankingUtility.CUSTOMER_ID_COUNTER, new Customer(BankingUtility.CUSTOMER_ID_COUNTER,"V", "J", "abc@gmail.com", "abc12300", new Address(400001, "pune", "mh"), new Address(500014, "hyd", "TG")));
+		BankingDAOServicesImpl.customerMap.get(BankingUtility.CUSTOMER_ID_COUNTER).getAccountMap().put(BankingUtility.ACCOUNT_NO_COUNTER, new Account(8000, 0, "Savings", "Active", 100000));
+		BankingDAOServicesImpl.customerMap.get(BankingUtility.CUSTOMER_ID_COUNTER++).getAccountMap().get(BankingUtility.ACCOUNT_NO_COUNTER++).getTransactionMap().put(BankingUtility.TRANSACTION_ID_COUNTER, new Transaction(BankingUtility.TRANSACTION_ID_COUNTER++, 10000, "Deposit"));
+	
+	}
+	@After
+	public void tearDownMockData(){
+		BankingUtility.CUSTOMER_ID_COUNTER=1;
+		BankingUtility.ACCOUNT_NO_COUNTER=8000001;
+		BankingUtility.TRANSACTION_ID_COUNTER=1001;
+		BankingDAOServicesImpl.customerMap.clear();
+	}
+	@Test
+	public void testCustomerDetailsValidData() throws CustomerNotFoundException, BankingServicesDownException {
+		Customer customer=new Customer(1,"V", "J", "abc@gmail.com", "abc12300", new Address(400001, "pune", "mh"), new Address(500014, "hyd", "TG"));
+		BankingDAOServicesImpl.customerMap.put(1,customer);
+		BankingDAOServicesImpl.customerMap.get(1).getAccountMap().put(8000001l, new Account(8888, 0, "Savings", "Active", 100000));
+		BankingDAOServicesImpl.customerMap.get(1).getAccountMap().get(8000001l).getTransactionMap().put(1001, new Transaction(1001, 10000, "Deposit"));
+	
+	Assert.assertEquals(customer, services.getCustomerDetails(1));
+	}
+	@Test
+	public void testCustomerDetailsInvalidData() throws CustomerNotFoundException, BankingServicesDownException{
+		Customer customer=new Customer(2,"V", "J", "abc@gmail.com", "abc12300", new Address(400001, "pune", "mh"), new Address(500014, "hyd", "TG"));
+		BankingDAOServicesImpl.customerMap.put(2,customer);
+		BankingDAOServicesImpl.customerMap.get(2).getAccountMap().put(8000002l, new Account(8888, 0, "Savings", "Active", 100000));
+		BankingDAOServicesImpl.customerMap.get(2).getAccountMap().get(8000002l).getTransactionMap().put(1002, new Transaction(1001, 10000, "Deposit"));
+	
+	assertNotEquals(customer, services.getCustomerDetails(1));	
+	}
+	@Test
+	public void testCustomerIdValidData() throws BankingServicesDownException{
+		assertEquals(3,services.acceptCustomerDetails("Vishal", "Sai", "bank@gmail.com", "abc1000", "HYD", "TG", 500014, "HYDERABAD", "TELANGANA", 500001));
+	}
+	@Test
+	public void testCustomerIdInValidData() throws BankingServicesDownException{
+		assertNotEquals(6,services.acceptCustomerDetails("Vishal", "Sai", "bank@gmail.com", "abc1000", "HYD", "TG", 500014, "HYDERABAD", "TELANGANA", 500001));
+	}
+	@Test
+	public void testOpenAccountSameCustomerValidData() throws InvalidAmountException, CustomerNotFoundException, InvalidAccountTypeException, BankingServicesDownException{
+		assertEquals(8000003l,services.openAccount(1, "Savings", 10000));
+	}
+	@Test
+	public void testOpenAccountOtherCustomerValidData() throws InvalidAmountException, CustomerNotFoundException, InvalidAccountTypeException, BankingServicesDownException{
+		Customer customer=new Customer(2,"V", "J", "abc@gmail.com", "abc12300", new Address(400001, "pune", "mh"), new Address(500014, "hyd", "TG"));
+		BankingDAOServicesImpl.customerMap.put(2,customer);
+		assertEquals(8000003,services.openAccount(2, "Savings", 10000));
+	}
+	@Test(expected=CustomerNotFoundException.class)
+	public void testOpenAccountInvalidCustomer() throws InvalidAmountException, CustomerNotFoundException, InvalidAccountTypeException, BankingServicesDownException{
+		services.openAccount(5, "savings", 10000);
+	}
+	@Test(expected=InvalidAmountException.class)
+	public void testOpenAccountInvalidAmount() throws InvalidAmountException, CustomerNotFoundException, InvalidAccountTypeException, BankingServicesDownException{
+		services.openAccount(1, "savings", -10);
+	}
+	@Test(expected=InvalidAccountTypeException.class)
+	public void testOpenAccountInvalidAccType() throws InvalidAmountException, CustomerNotFoundException, InvalidAccountTypeException, BankingServicesDownException{
+		services.openAccount(1, "abcdefghiJ", 1000);
+	}
+	@Test(expected=CustomerNotFoundException.class)
+	public void testDepositInvalidCustomer() throws CustomerNotFoundException, AccountNotFoundException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.depositAmount(0, 8000001, 250000);
+	}
+	@Test(expected=AccountNotFoundException.class)
+	public void testDepositInvalidAccNo() throws CustomerNotFoundException, AccountNotFoundException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.depositAmount(1, 8000000, 250000);
+	}
+	@Test(expected=InvalidAmountException.class)
+	public void testDepositInvalidAmount() throws CustomerNotFoundException, AccountNotFoundException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.depositAmount(1, 8000001, -250000);
+	}
+	@Test(expected=AccountBlockedException.class)
+	public void testDepositInvalidStatus() throws CustomerNotFoundException, AccountNotFoundException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.getAccountDetails(1, 8000001).setStatus("Blocked");
+		services.depositAmount(1, 8000001, 250000);
+	}
+	@Test
+	public void testDepositValidData() throws CustomerNotFoundException, AccountNotFoundException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		assertEquals(120000,services.depositAmount(1, 8000001, 20000),0);
+	}
+	@Test(expected=CustomerNotFoundException.class)
+	public void testWithdrawInvalid() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.withdrawAmount(0, 8000001, 20000, 8888);
+	}
+	@Test(expected=InsufficientAmountException.class)
+	public void testWithdrawInvalidSufficAmount() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.withdrawAmount(1, 8000001, 121000, 8888);
+	}
+	@Test(expected=AccountNotFoundException.class)
+	public void testWithdrawInvalidAccount() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.withdrawAmount(1, 8000003, 20000, 8888);
+	}
+	@Test(expected=InvalidPinNumberException.class)
+	public void testWithdrawInvalidPinNo() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.withdrawAmount(1, 8000001, 20000, 8008);
+	}
+	@Test(expected=AccountBlockedException.class)
+	public void testWithdrawInvalidAccBlocked() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.getAccountDetails(1, 8000001).setStatus("Blocked");
+		services.withdrawAmount(1, 8000001, 122000, 8888);
+	}
+	@Test(expected=InvalidAmountException.class)
+	public void testWithdrawInvalidAmount() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.withdrawAmount(1, 8000001, -121000, 8888);
+	}
+	@Test
+	public void testWithdrawValidData() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		assertEquals(80000, services.withdrawAmount(1, 8000001, 20000, 8888),0);
+	}
+	@Test(expected=InsufficientAmountException.class)
+	public void testFundInsufficientAmt() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000002, 1, 8000001, 120000, 8888);
+	}
+	@Test(expected=CustomerNotFoundException.class)
+	public void testFundInvalidCustomer() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000002, 4, 8000001, 20000, 8888);
+	}
+	@Test(expected=AccountNotFoundException.class)
+	public void testFundInvalidAccount() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000002, 1, 8000002, 20000, 8888);
+	}
+	@Test(expected=InvalidPinNumberException.class)
+	public void testFundInvalidPinNo() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000002, 1, 8000001, 20000, 8008);
+	}
+	@Test(expected=AccountBlockedException.class)
+	public void testFundInvalidAccType() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.getAccountDetails(1, 8000001).setStatus("Blocked");
+		services.fundTransfer(2, 8000002, 1, 8000001, 20000, 8888);
+	}
+	@Test(expected=InvalidAmountException.class)
+	public void testFundInvalid() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000002, 1, 8000001, -120000, 8888);
+	}
+	@Test(expected=CustomerNotFoundException.class)
+	public void testFundSecondInvalidCustomer() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(5, 8000002, 1, 8000001, 20000, 8888);
+	}
+	@Test(expected=AccountNotFoundException.class)
+	public void testFundSecondInvalidAccount() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.fundTransfer(2, 8000001, 1, 8000002, 20000, 8888);
+	}
+	@Test(expected=AccountBlockedException.class)
+	public void testFundSecondInvalidAccType() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		services.getAccountDetails(2, 8000002).setStatus("Blocked");
+		services.fundTransfer(2, 8000002, 1, 8000001, 20000, 8888);
+	}
+	@Test
+	public void testFundValidData() throws InsufficientAmountException, CustomerNotFoundException, AccountNotFoundException, InvalidPinNumberException, BankingServicesDownException, AccountBlockedException, InvalidAmountException{
+		assertTrue(services.fundTransfer(1, 8000001, 2, 8000002, 10000, 8000));
+	}
+}
