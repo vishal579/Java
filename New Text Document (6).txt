@@ -1,0 +1,279 @@
+package com.cg.banking.daoservices;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+
+//import java.util.Random;
+import com.cg.banking.utility.BankingUtility;
+import com.cg.banking.utility.BankingUtilityCookies;
+//import com.mysql.jdbc.PreparedStatement;
+import com.cg.banking.beans.Account;
+import com.cg.banking.beans.Address;
+import com.cg.banking.beans.Customer;
+import com.cg.banking.beans.Transaction;
+import com.cg.banking.exceptions.BankingServicesDownException;
+
+public class BankingDAOServicesImpl implements BankingDAOServices{
+	Connection conn =null;
+	private static int prevCustomerId;
+	private static long prevAccountNo;
+	public BankingDAOServicesImpl() throws BankingServicesDownException {
+		conn = BankingUtility.getDBConnection();
+	}
+	@Override
+	public int insertCustomer(Customer customer) throws SQLException{
+
+
+		try {
+			conn.setAutoCommit(false);
+			PreparedStatement ins1= conn.prepareStatement("insert into customer(firstName,lastName,emailId,panCard) values(?,?,?,?)");
+			ins1.setString(1, customer.getFirstName());
+			ins1.setString(2, customer.getLastName());
+			ins1.setString(3, customer.getEmailId());
+			ins1.setString(4, customer.getPanCard());
+			ins1.executeUpdate();
+			PreparedStatement sel1=conn.prepareStatement("select max(customerId) FROM customer");
+			ResultSet rs=sel1.executeQuery();
+			rs.next();
+			int cId=rs.getInt(1);
+			PreparedStatement ins2=conn.prepareStatement("insert into address(customerId,pincode,city,state) values(?,?,?,?)");
+			ins2.setInt(1, cId);
+			ins2.setInt(2, customer.getHomeAddress().getPincode());
+			ins2.setString(3, customer.getHomeAddress().getCity());
+			ins2.setString(4, customer.getHomeAddress().getState());
+			ins2.executeUpdate();
+			PreparedStatement ins4=conn.prepareStatement("insert into address(customerId,pincode,city,state) values(?,?,?,?)");
+			ins4.setInt(1, cId);
+			ins4.setInt(2, customer.getLocalAddress().getPincode());
+			ins4.setString(3, customer.getLocalAddress().getCity());
+			ins4.setString(4, customer.getLocalAddress().getState());
+			ins4.executeUpdate();
+
+			conn.commit();
+			return cId;
+		} catch (SQLException e) {
+			conn.rollback(); 
+			e.printStackTrace();
+		}finally {
+			conn.setAutoCommit(true);
+		}
+
+
+		return 0;
+	}
+
+	@Override
+	public long insertAccount(int customerId, Account account) throws SQLException {
+
+		try {
+			conn.setAutoCommit(false);
+			PreparedStatement ins3=conn.prepareStatement("insert into account(customerId,accountType,accountBalance) values(?,?,?)");
+			ins3.setInt(1, customerId);
+			//ins3.setInt(2, account.getPinNumber());
+			//ins3.setInt(3, account.getPinCounter());
+			ins3.setString(2, account.getAccountType());
+			//ins3.setString(5, account.getStatus());
+			ins3.setFloat(3,account.getAccountBalance());
+			//ins3.setLong(7, 8000001);
+			ins3.executeUpdate();
+			System.out.println(customerId+" "+account.getAccountBalance());
+			PreparedStatement sel2=conn.prepareStatement("select max(accountNo) from account");
+			ResultSet rs=sel2.executeQuery();
+			rs.next();
+			long aNo=rs.getLong(1);
+			System.out.println(aNo);
+			conn.commit();
+			return aNo;
+
+		} catch (SQLException e) {
+			conn.rollback(); 
+			e.printStackTrace();
+		}finally {
+			conn.setAutoCommit(true);
+		}
+
+
+		return 0;
+	}
+
+	@Override
+	public boolean updateAccount(int customerId, Account account) {
+
+		return false;
+	}
+
+	@Override
+	public int generatePin(int customerId, Account account) {
+
+		return 0;
+	}
+
+	@Override
+	public boolean insertTransaction(int customerId, long accountNo, Transaction transaction) {
+
+		return false;
+	}
+
+	@Override
+	public boolean deleteCustomer(int customerId) {
+
+		return false;
+	}
+
+	@Override
+	public boolean deleteAccount(int customerId, long accountNo) {
+
+		return false;
+	}
+
+	@Override
+	public Customer getCustomer(int customerId) {
+		try {
+			PreparedStatement selT=conn.prepareStatement("select c.customerId,a.accountNo,firstName,  lastName,  emailId,  panCard,  pinNumber,pinCounter, accountType,accountBalance from customer c,account a where c.customerId =a.customerId Group By  firstName, lastName,  emailId,  panCard,  pinNumber,pinCounter, accountType,accountBalance where c.customerId=?");
+			selT.setInt(1, customerId);
+			ResultSet rs=selT.executeQuery();
+			Customer customer=new Customer(rs.getInt("customerId"),rs.getString("firstName"), rs.getString("lastName"), rs.getString("emailId"), rs.getString("panCard"));
+
+			while(rs.next()){
+
+				long currAccountNo=rs.getLong("accountNo");
+
+				if(prevAccountNo==currAccountNo){
+					//if(rs.getInt("transactionId")!=0)
+					//customer.getAccountMap().get(rs.getLong("accountNo")).getTransactionMap().put(rs.getInt("transactionId"),new Transaction(transactionId, amount, transactionType));
+				}
+				else{
+					customer.getAccountMap().put(rs.getLong("accountNo"), new Account(rs.getLong("accountNo"),rs.getString("accountType"), rs.getFloat("accountBalance")));
+					//if(rs.getInt("transactionId")!=0)
+					//customer.getAccountMap().get(rs.getLong("accountNo")).getTransactionMap().put(rs.getInt("transactionId"),new Transaction(transactionId, amount, transactionType));
+
+				}
+				prevAccountNo=currAccountNo;
+			}
+
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	@Override
+	public Account getAccount(int customerId, long accountNo) {
+
+		return null;
+	}
+
+	@Override
+	public List<Customer> getCustomers() {
+
+		try {
+			HashMap<Integer,Customer> customerList=new HashMap<>();
+			PreparedStatement selT=conn.prepareStatement("select c.customerId,a.accountNo,firstName,  lastName,  emailId,  panCard,  pinNumber,pinCounter, accountType,accountBalance from customer c,account a where c.customerId =a.customerId Group By  firstName, lastName,  emailId,  panCard,  pinNumber,pinCounter, accountType,accountBalance");
+			ResultSet rs;
+			rs = selT.executeQuery();
+
+			while(rs.next()){
+				int currCustomerId=rs.getInt("customerId");
+				long currAccountNo=rs.getLong("accountNo");
+				//index++;
+				System.out.println(currCustomerId);
+				if(prevCustomerId==currCustomerId){
+					//System.out.println(rs.getLong("accountNo"));
+					//if(rs.getLong("accountNo")!=0){
+					customerList.get(currCustomerId).getAccountMap().put(rs.getLong("accountNo"), new Account(rs.getLong("accountNo"),rs.getString("accountType"), rs.getFloat("accountBalance")));
+					if((prevAccountNo==currAccountNo)&&rs.getInt("transactionId")!=0){
+					//	customerList.get(currCustomerId).getAccountMap().get(rs.getLong("accountNo")).getTransactionMap().put(rs.getInt("transactionId"),new Transaction(transactionId, amount, transactionType));
+					}
+					//}
+				}
+				else{
+					System.out.println(rs.getLong("accountNo"));
+					customerList.put(currCustomerId, new Customer(rs.getInt("customerId"),rs.getString("firstName"), rs.getString("lastName"), rs.getString("emailId"), rs.getString("panCard")));
+					if(rs.getLong("accountNo")!=0){
+						customerList.get(currCustomerId).getAccountMap().put(rs.getLong("accountNo"), new Account(rs.getLong("accountNo"),rs.getString("accountType"), rs.getFloat("accountBalance")));
+						if(rs.getInt("transactionId")!=0){
+						//customerList.get(currCustomerId).getAccountMap().get(rs.getLong("accountNo")).getTransactionMap().put(rs.getInt("transactionId"),new Transaction(transactionId, amount, transactionType));
+						}	
+					}
+				}
+				prevCustomerId=currCustomerId;
+			}
+			return new ArrayList(customerList.values());
+		} catch (SQLException e) {
+
+			e.printStackTrace();
+		}
+
+		return null;
+	}
+
+	@Override
+	public List<Account> getAccounts(int customerId) {
+
+		return null;
+	}
+
+	@Override
+	public List<Transaction> getTransactions(int customerId, long accountNo) {
+
+		return null;
+	}
+
+	public void doDeSerialization(File fromFile) {
+		// TODO Auto-generated method stub
+
+	}
+
+	public void doSerialization(File fromFile) {
+		// TODO Auto-generated method stub
+
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+//BankingUtilityCookies bankingUtilityCookies=(BankingUtilityCookies) src.readObject();
+//for(Customer customer:customerList)
+//customerMap.put(customer.getCustomerId(), customer);
+//BankingUtility.CUSTOMER_ID_COUNTER=customerList.get(customerList.size()-1).getCustomerId()+1;
+//BankingUtility.ACCOUNT_NO_COUNTER;
+
+//System.out.println(customerList.size());
+//System.out.println(customer.getCustomerId()+" "+customer);
+/*(System.out.println(getCustomers().size());
+System.out.println(getCustomers().get(0).getAccountMap().size());
+System.out.println(getCustomers().get(1).getAccountMap().size());
+//System.out.println(getCustomers().size());
+ * for(int i=0;i<customerList.size();i++){
+					if(!(customer.getAccountMap().isEmpty()))
+				}
+				BankingUtility.CUSTOMER_ID_COUNTER=customerList.get(customerList.size()-1).getCustomerId()+1;
+			System.out.println(BankingUtility.CUSTOMER_ID_COUNTER);
+ */
+//System.out.println(customer.getAccountMap().size());
+//System.out.println(getCustomers().get(getCustomers().size()-1).getAccountMap().size());
+//System.out.println(getCustomers().get(0).getAccountMap().size());
